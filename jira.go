@@ -3,16 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"strconv"
 
 	jira "github.com/andygrunwald/go-jira"
 )
 
 type customFields struct {
-	image    string
-	replicas int
-	expose   bool
-	name     string
+	app         string
+	environment string
 }
 
 func processIssues() {
@@ -53,7 +50,7 @@ func processIssues() {
 		cf, err := getCustomFields(jiraClient, issue.ID)
 
 		// Do the deployment.
-		err = syncDeployment(cf.name, cf.image, cf.replicas)
+		err = runDeployment(cf.app, cf.environment)
 		if err != nil {
 			log.Println(err)
 
@@ -65,7 +62,7 @@ func processIssues() {
 			continue
 		}
 
-		message := fmt.Sprintf("Deployed image: %s replicas: %d exposed: %v successfully.", cf.image, cf.replicas, cf.expose)
+		message := fmt.Sprintf("Deployed application %s to %s environment successfully.", cf.app, cf.environment)
 		log.Println(message)
 
 		_, _, err = jiraClient.Issue.AddComment(issue.ID, &jira.Comment{Body: message})
@@ -97,23 +94,10 @@ func getCustomFields(client *jira.Client, issueID string) (customFields, error) 
 	if fields, ok := f.(map[string]interface{}); ok {
 		for field, value := range fields {
 			switch field {
-			case nameFieldId:
-				cf.name = value.(string)
-			case imageFieldId:
-				cf.image = value.(string)
-			case replicasFieldId:
-				for k, v := range value.(map[string]interface{}) {
-					if k == "value" {
-						cf.replicas, err = strconv.Atoi(v.(string))
-						if err != nil {
-							return cf, err
-						}
-					}
-				}
-			case exposeFieldId:
-				if value != nil {
-					cf.expose = true
-				}
+			case appNameFieldId:
+				cf.app = value.(string)
+			case envNameFieldId:
+				cf.environment = value.(string)
 			}
 		}
 	}

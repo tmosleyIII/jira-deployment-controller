@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,10 +13,31 @@ import (
 )
 
 var (
+	buildHost           = ""
 	apiHost             = "127.0.0.1:8001"
-	deploymentsEndpoint = "/apis/extensions/v1beta1/namespaces/default/deployments"
+	deploymentsEndpoint = ""
 	servicesEndpoint    = "/api/v1/namespaces/default/services"
 )
+
+func runDeployment(app string, environment string) error {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	url := fmt.Sprintf("https://%s%s&app_name=%s&env_name=%s", buildHost, deploymentsEndpoint, app, environment)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 201 {
+		return errors.New("Current error" + resp.Status)
+	}
+	return nil
+}
 
 func syncDeployment(name, image string, replicas int) error {
 	deployment, err := getDeployment(name)
